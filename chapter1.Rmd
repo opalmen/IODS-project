@@ -1,5 +1,5 @@
 
-# About the project
+# About this project
 
 This project is about learning data science using [R](https://cran.r-project.org/).
 
