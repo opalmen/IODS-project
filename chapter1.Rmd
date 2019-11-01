@@ -1,4 +1,8 @@
 
 # About the project
 
-*Write a short description about the course and add a link to your GitHub repository here. This is an R Markdown (.Rmd) file so you can use R Markdown syntax.*
+This project is about learning data science using [R](https://cran.r-project.org/).
+
+## Github
+
+More information can be found in my [Github respository](https://github.com/opalmen/IODS-project.git)
