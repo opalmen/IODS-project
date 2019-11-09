@@ -1,42 +1,199 @@
 # RStudio Exercise 2: Regression and model validation
 
-*Describe the work you have done this week and summarize your learning.*
+## Data Wrangling
 
-- Describe your work and results clearly. 
-- Assume the reader has an introductory course level understanding of writing and reading R code as well as statistical methods.
-- Assume the reader has no previous knowledge of your data or the more advanced methods you are using.
+See file `learning2014.r` in [my GitHub repository](https://github.com/opalmen/IODS-project/tree/master/data)  
 
- ```{r setup, include=FALSE}
- library(knitr)
- opts_chunk$set(results = 'asis',      # This is essential (can also be set at the chunk-level)
-                comment = NA, 
-                prompt = FALSE, 
-                cache = FALSE)
 
- library(summarytools)
- st_options(plain.ascii = FALSE,       # This is very handy in all Rmd documents
-            #style = "rmarkdown"        # This too
-            footnote = NA,             # Avoids footnotes which would clutter the results
-            subtitle.emphasis = FALSE  # This is a setting to experiment with - according to
- )                                     # the theme used, it might improve the headings' 
-                                       # layout
+## Data analysis for RStudio Exercise 2
+
+### Install required packages
+
+First, we install the required packages for the analysis: ggplot2, GGally, gridExtra (for multiple plots)
+
+ ```{r, results="hide", message=FALSE}
+install.packages("ggplot2", repos = "http://cloud.r-project.org")
+install.packages("GGally", repos = "http://cloud.r-project.org")
+install.packages("gridExtra", repos = "http://cloud.r-project.org")
  ```
 
- ```{r, echo=FALSE}
- st_css()                              # This is a must; without it, expect odd layout,
- ```
-
-Read data from the website:
+Read data from the web:
 
 ```{r}
-learning2014 <- read.table("http://s3.amazonaws.com/assets.datacamp.com/production/course_2218/datasets/learning2014.txt", sep=",", header=TRUE)
+lrn14 <- read.table("http://s3.amazonaws.com/assets.datacamp.com/production/course_2218/datasets/learning2014.txt", sep=",", header=TRUE)
 
 ```
 
-Summary statistics:
+Assess the data structure:
 
-```{r, echo=FALSE, message=FALSE}
+```{r, message=FALSE}
 
-dfSummary(learning2014, plain.ascii = FALSE, style = "grid", 
-          graph.magnif = 0.75, valid.col = FALSE, na.col = FALSE, tmp.img.dir = "/tmp")
+summary(lrn14)
+
 ```
+
+The dataset is used to study the relationship between learning approaches and students' achievements in an introductory statistics course in Finland. It consists of 166 observations of 7 variables. The sample consists of 110 females and 56 males. The respondents' age ranges between 17 and 55. The median age is 22.
+
+
+```{r, message=FALSE}
+
+str(lrn14)
+
+```
+
+1. `age` describes the age of the respondent.
+2. `gender` describes the sex of the respondent.
+3. `points` describes the points of the respondent.
+4. `deep` is a composite variable that measures the respondents' inclination to deep learning methods.
+5. `stra` is a composite variable that measures the respondents' inclination to strategic learning methods.
+6. `surf` is a composite variable that measures the respondents' inclination to surface learning methods.
+7. `attitude` is a composite variable that measures the respondents' attitude towards learning statistics. 
+
+### Summary statistics of the learning data
+
+First, we load the required libraries (GGally, ggplot2, gridExtra)
+
+```{r, message=FALSE}
+
+library(ggplot2)
+library(GGally)
+library(gridExtra)
+```
+
+### Plot summary of learning data with ggpairs()
+
+Overview of the learning data:
+
+```{r, message=FALSE, fig.width=12, fig.height=8}
+ggpairs(lrn14, mapping = aes(col=gender, alpha=0.3), lower = list(combo = wrap("facethist", bins = 20))) + ggtitle("Learning 2014: Summary Statistics")
+```
+
+Next, we plot the each learning approach against the data to assess correlation between the variables.
+
+Next, we plot all learning variables and points
+```{r, message=FALSE, fig.width=12, fig.height=8}
+
+# initialize plots with data and aesthetic mapping
+
+# attitude vs points
+p1 <- ggplot(lrn14, aes(x = attitude, y=points, col=gender)) + geom_point() + ggtitle("Attitude vs points") + theme(legend.position="bottom")
+
+# stra vs points
+p2 <- ggplot(lrn14, aes(x = stra, y=points, col=gender)) + geom_point() + ggtitle("Strategic learning vs points")
+
+# surf vs points
+p3 <- ggplot(lrn14, aes(x = surf, y=points, col=gender)) + geom_point() + ggtitle("Surface learning vs points")
+
+# deep vs points
+p4 <- ggplot(lrn14, aes(x = deep, y=points, col=gender)) + geom_point() + ggtitle("Deep learning vs points")
+
+# create common legend
+g_legend<-function(a.gplot){
+  tmp <- ggplot_gtable(ggplot_build(a.gplot))
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
+  legend <- tmp$grobs[[leg]]
+  return(legend)}
+
+mylegend<-g_legend(p1)
+
+# multiple plot
+grid.arrange(arrangeGrob(p1 + theme(legend.position="none"),
+                               p2 + theme(legend.position="none"),
+                               p3 + theme(legend.position="none"),
+                               p4 + theme(legend.position="none"),
+                               nrow=2),
+                   mylegend, nrow=2,heights=c(10,1))
+
+```
+
+Attitude and study achievement seems to be correlated, whether there does not appear correlation with study achievement and different learning approaches.
+
+Next, we plot histograms for each variable according to gender
+
+```{r, message=FALSE, fig.width=12, fig.height=8}
+p6 <- ggplot(lrn14, aes(x=attitude, fill=gender, color=gender)) +
+  geom_histogram(position="identity", alpha=0.5) 
+
+p7 <- ggplot(lrn14, aes(x=deep, fill=gender, color=gender)) +
+  geom_histogram(position="identity", alpha=0.5)
+
+p8 <- ggplot(lrn14, aes(x=stra, fill=gender, color=gender)) +
+  geom_histogram(position="identity", alpha=0.5)
+
+p9 <- ggplot(lrn14, aes(x=surf, fill=gender, color=gender)) +
+  geom_histogram(position="identity", alpha=0.5)
+
+p10 <- ggplot(lrn14, aes(x=points, fill=gender, color=gender)) +
+  geom_histogram(position="identity", alpha=0.5)
+
+p11 <- ggplot(lrn14, aes(x=points, fill=gender, color=gender)) +
+  geom_histogram(position="identity", alpha=0.5)
+
+
+grid.arrange(arrangeGrob(p6 + theme(legend.position="none"),
+                         p7 + theme(legend.position="none"),
+                         p8 + theme(legend.position="none"),
+                         p9 + theme(legend.position="none"),
+                         p10 + theme(legend.position="none"),
+                         p11 + theme(legend.position="none"),
+                         nrow=3),
+             mylegend, nrow=2,heights=c(10,1), top="Learning 2014: Frequencies")
+
+```
+
+Males appear to have a generally more positive attitude towards statistics than females, but there does not appear to be other differences between them.
+
+### Regression analysis
+
+Next, we move to regression analysis to determine what variables affect study achivement (`points`).
+
+* Model 1:
++ **Dependent variable**: `points` 
++ **Explanatory variables**: `attitude`, `stra`, `surf` 
+
+
+```{r, message=FALSE}
+my_model1 <- lm(points ~ attitude + stra + surf, data = lrn14)
+summary(my_model1)
+
+```
+
+Variables `stra` and `surf` are not statistically significant. Drop `surf` as explanatory variable, because p-value is greatest.
+
+* Model 2:
++ **Dependent variable**: `points` 
++ **Explanatory variables**: `attitude`, `stra` 
+
+```{r, message=FALSE}
+my_model2 <- lm(points ~ attitude + stra, data = lrn14)
+summary(my_model2)
+
+```
+
+Variables `stra` is not statistically significant at the 5% level. Keep `attitude` as only explanatory variable with intercept, because variable is statistically significant at the 5% level.
+
+* Model 3:
++ **Dependent variable**: `points` 
++ **Explanatory variables**: `attitude` 
+
+```{r, message=FALSE}
+my_model3 <- lm(points ~ attitude, data = lrn14)
+summary(my_model3)
+
+```
+
+The explanatory variable `attitude` and the intercept ar statistically significant. The model (model 3) may be interpreted such that a one point increase in attitude increases test points by 3.5. 
+
+### Model validation
+
+```{r, message=FALSE}
+par(mfrow = c(1,3))
+plot(my_model3, which=c(1,2,5))
+
+```
+
+Residuals appear to be randomly distributed and centered around zero, which suggests that the model satisifies the condition that the errors are not serially correlated.
+
+The Q-Q-plot shows that the relationship between the sample percentiles and the theoretical samples from the normal distribution is linear, which suggests that the  model satisfies the condition that the errors are normally distributed.
+
+The relationship bewteen residuals and leverage shows that there are no outliers in the data that significantly affect the regression results.
