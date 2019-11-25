@@ -2,6 +2,11 @@
 # 16.11.2019
 # Combine datasets student-mat and student-por (retrieved from: https://archive.ics.uci.edu/ml/machine-learning-databases/00320/)
 
+
+## Access the dplyr library
+install.packages("dplyr")
+library(dplyr)
+
 ## Read data
 
 # Read student-mat.csv
@@ -14,10 +19,6 @@ str(por)
 
 
 ## Join datasets
-
-# Access the dplyr library
-install.packages("dplyr")
-library(dplyr)
 
 # common columns to use as identifiers
 join_by <- c("school","sex","age","address","famsize","Pstatus","Medu","Fedu","Mjob","Fjob","reason","nursery","internet")
@@ -77,5 +78,5 @@ write.table(alc, file="C:/Users/palme/Documents/IODS-project/data/alc.csv", sep=
 # Read table and check everything ok
 test <- read.table("C:/Users/palme/Documents/IODS-project/data/alc.csv", sep=",", header=TRUE)
 glimpse(test)
-
+glimpse(alc)
 # everything ok!

@@ -246,7 +246,7 @@ The average number of wrong predictions in the cross validation is `r cv$delta[1
 Such model can be where `high_use` is explained by`studytime`, `sex`, and `goout`.
 
 ```{r}
-m2 <- glm(high_use ~studytime + sex +goout, data = alc, family = "binomial")
+m2 <- glm(high_use ~ studytime + sex + goout, data = alc, family = "binomial")
 
 summary(m2)
 

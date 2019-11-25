@@ -1,0 +1,347 @@
+# RStudio Exercise 4: Clustering and classification
+
+## Housekeeping
+
+First, install required packages:
+
+```{r, message=FALSE, warning=FALSE, results='hide'}
+install.packages('plotly', repos = "http://cloud.r-project.org")
+install.packages('dplyr', repos = "http://cloud.r-project.org")
+install.packages('ggplot2', repos = "http://cloud.r-project.org")
+install.packages('GGally', repos = "http://cloud.r-project.org")
+install.packages("corrplot", repos = "http://cloud.r-project.org")
+```
+
+Access the required libraries:
+
+```{r, message=FALSE}
+library(dplyr)
+library(MASS)
+library(ggplot2)
+library(GGally)
+```
+
+## Summary of the data
+
+For this exercise, we are using the `Boston` dataset, which contains information on housing in Boston Massachusetts.
+For more information, see [this website](https://www.cs.toronto.edu/~delve/data/boston/bostonDetail.html)
+
+We start out by loading the data from the `MASS` package.
+
+
+```{r }
+# load the data
+data("Boston")
+```
+
+
+Explore the dataset `Boston`:
+
+```{r }
+str(Boston)
+```
+
+Dataset contains 506 observations of 14 variables.
+
+1. `CRIM` - per capita crime rate by town
+2. `ZN` - proportion of residential land zoned for lots over 25,000 sq.ft.
+3. `INDUS` - proportion of non-retail business acres per town.
+4. `CHAS` - Charles River dummy variable (1 if tract bounds river; 0 otherwise)
+5. `NOX` - nitric oxides concentration (parts per 10 million)
+6. `RM` - average number of rooms per dwelling
+7. `AGE` - proportion of owner-occupied units built prior to 1940
+8. `DIS` - weighted distances to five Boston employment centres
+9. `RAD` - index of accessibility to radial highways
+10. `TAX` - full-value property-tax rate per $10,000
+11. `PTRATIO` - pupil-teacher ratio by town
+12. `BLACK` - 1000(Bk - 0.63)^2 where Bk is the proportion of blacks by town
+13. `LSTAT` - % lower status of the population
+14. `MEDV` - Median value of owner-occupied homes in $1000's
+
+```{r }
+summary(Boston)
+```
+We can notice that the variable `chas` is a dummy variable (either 0 or 1), but other variables are continuous and have varying means and variances.
+
+We can see this more clearly by visualizing the data.
+
+### Visualize the data
+
+```{r plot1, fig.height = 8, fig.width = 12}
+# use ggplot to explore the data
+#ggplot(Boston, aes(x=zn)) + geom_histogram(binwidth=50)
+
+ggpairs(Boston, lower = list(combo = wrap("facethist", bins = 20)))
+```
+
+
+We can also plot the correlation between variables:
+
+
+```{r, results='hide', warning=FALSE, message=FALSE}
+library(corrplot)
+```
+
+```{r}
+
+# calculate the correlation matrix and round it
+cor_matrix<-cor(Boston) %>% round(digits = 2)
+# visualize the correlation matrix
+corrplot(cor_matrix, method="circle", type="upper", cl.pos="b", tl.pos="d", tl.cex = 0.6)
+
+```
+
+There appears to be strong correlation between crime (`crim`) and pupil-teacher-ratio (`ptratio`) and accessibility to highways (`rad`)
+
+
+### Standardize the data for the linear discrimination analysis (LDA)
+
+```{r}
+
+boston_scaled <- scale(Boston) # center and standardize variables
+
+# summaries of the scaled variables
+summary(boston_scaled)
+
+```
+Looking at the scaled data, we can see that each variable is now centered around zero, i.e. the mean is zero  by definition, whereas the mean varied in the original data.  
+
+```{r}
+
+# change the object to data frame
+boston_scaled <- as.data.frame(boston_scaled)
+
+## Create a categorical variable of the crime rate in the Boston dataset (from the scaled crime rate). 
+# Use the quantiles as the break points in the categorical variable.
+
+# summary of the scaled crime rate
+summary(boston_scaled$crim)
+
+# create a quantile vector of crim and print it
+bins <- quantile(boston_scaled$crim)
+bins
+
+# create a categorical variable 'crime'
+crime <- cut(boston_scaled$crim, breaks = bins, include.lowest = TRUE, labels = c("low", "med_low", "med_high", "high"))
+
+# look at the table of the new factor crime
+table(crime)
+
+# remove original crim from the dataset
+boston_scaled <- dplyr::select(boston_scaled, -crim)
+
+# add the new categorical value to scaled data
+boston_scaled <- data.frame(boston_scaled, crime)
+
+# number of rows in the Boston dataset 
+n <- nrow(boston_scaled)
+
+# choose randomly 80% of the rows
+ind <- sample(n,  size = n * 0.8)
+
+# create train set
+train <- boston_scaled[ind,]
+
+# create test set 
+test <- boston_scaled[-ind,]
+
+```
+
+
+### LDA on the train set
+
+First, we fit the linear discriminant analysis on the train set by using  the categorical crime rate as the target variable and all the other variables in the dataset as predictor variables.
+
+```{r}
+# fit the LDA model
+lda.fit <- lda(crime ~ ., data = train)
+
+# print the lda.fit object
+lda.fit
+
+```
+
+We can see that the first linear discriminant (LD1) explains most of the differences between groups, as the proportio of the trace is the very large (0.9563)
+
+We can see this more clearly by plotting the results:
+
+```{r}
+
+# create the function for lda biplot arrows
+lda.arrows <- function(x, myscale = 1, arrow_heads = 0.1, color = "orange", tex = 0.75, choices = c(1,2)){
+  heads <- coef(x)
+  arrows(x0 = 0, y0 = 0, 
+         x1 = myscale * heads[,choices[1]], 
+         y1 = myscale * heads[,choices[2]], col=color, length = arrow_heads)
+  text(myscale * heads[,choices], labels = row.names(heads), 
+       cex = tex, col=color, pos=3)
+}
+
+# target classes as numeric
+classes <- as.numeric(train$crime)
+
+# plot the lda results
+plot(lda.fit, dimen = 2, col = classes, pch = classes)
+lda.arrows(lda.fit, myscale = 1)
+
+```
+
+First linear discriminant (LD1) explains the high crime areas, but cannot predict differences between the lower crime neighborhoods.  Second linear discriminant (LD2) can explain some differences between with the low crime neighbordhoods, with a lower value of LD2 associated with a higher crime levels.
+
+```{r, message=FALSE}
+# save the correct classes from test data
+correct_classes <- test$crime
+
+# remove the crime variable from test data
+test <- dplyr::select(test, -crime)
+
+summary(test)
+
+# predict classes with test data
+lda.pred <- predict(lda.fit, newdata = test)
+
+# cross tabulate the results
+table(correct = correct_classes, predicted = lda.pred$class)
+```
+
+The results in the above table show that the model predicts high crime areas well, but low, medium-low and medium-high crime areas are more difficult to predict. The model is unable to place low crime areas into the low category, given that it predicts low areas to belong to low and medium-low areas with the same probability.
+
+
+### K-means 
+
+```{r}
+
+#Reload the data from the MASS package
+library(MASS)
+data('Boston')
+
+#Scale the data
+boston_scaled <- scale(Boston)
+
+
+```
+
+Next, we calculate the distances between variables
+
+```{r}
+# euclidean distance matrix
+dist_eu <- dist(boston_scaled)
+
+# look at the summary of the distances
+summary(dist_eu)
+
+# manhattan distance matrix
+dist_man <- dist(boston_scaled, method = 'manhattan')
+
+# look at the summary of the distances
+summary(dist_man)
+
+
+```
+
+We can see that the Euclidean distances are shorter than the Manhattan distances, because the Euclidean distance calculates the shortest distance between variables, whereas the Manhattan distance measure the distance between variables along the axes at right angles.
+
+Next, we look at the results from k-means clustering with optimal number of clusters
+
+
+``` {r}
+set.seed(123) # Fix random number generator
+
+# determine the number of clusters
+k_max <- 10
+
+# calculate the total within sum of squares
+twcss <- sapply(1:k_max, function(k){kmeans(boston_scaled, k)$tot.withinss})
+
+# visualize the results
+qplot(x = 1:k_max, y = twcss, geom = 'line')
+
+```
+
+Because, the total within sum-of-squares decreases the fastest between one and two clusters, we perform k-means clustering with two centers.
+
+```{r}
+# k-means clustering
+km <-kmeans(boston_scaled, centers = 2)
+summary(boston_scaled)
+```
+
+Then we plot the original dataset with the clusters
+```{r}
+
+# plot the original Boston dataset with clusters
+pairs(boston_scaled, col = km$cluster)
+
+```
+
+
+```{r}
+
+# k-means clustering
+km <-kmeans(boston_scaled, centers = 4)
+summary(km)
+
+```
+
+```{r}
+# plot the Boston dataset with clusters
+pairs(boston_scaled[, 1:6], col = km$cluster)
+
+# plot the Boston dataset with clusters
+pairs(boston_scaled[, 7:14], col = km$cluster)
+
+```
+
+### Bonus 
+
+Next, we perform linear discriminant analysis with the `Boston` data by using the clusters from the k-means testing as the target variables.
+
+```{r}
+# Read data
+data(Boston)
+head(Boston)
+# Scale data
+boston_scaled <- scale(Boston)
+
+# change the object to data frame
+boston_scaled <- as.data.frame(boston_scaled)
+
+
+# Kmeans with three centers
+km1 <-kmeans(boston_scaled, centers = 4)
+
+lda.fit1 <- lda(km1$cluster ~ ., data = boston_scaled)
+
+
+# target classes as numeric
+classes <- as.numeric(km1$cluster)
+
+# plot the lda results
+plot(lda.fit1, dimen = 2, col = classes, pch = classes)
+lda.arrows(lda.fit1, myscale = 1)
+
+```
+We can see that the linear discriminants are useful at explaining the different clusters along the two dimensions, because the clusters are quite separate from one another. 
+
+### Super Bonus 
+
+Use package `plotly` to create 3D images
+
+```{r}
+library(plotly)
+```
+
+```{r}
+model_predictors <- dplyr::select(train, -crime)
+# check the dimensions
+dim(model_predictors)
+dim(lda.fit$scaling)
+# matrix multiplication
+matrix_product <- as.matrix(model_predictors) %*% lda.fit$scaling
+matrix_product <- as.data.frame(matrix_product)
+
+```
+
+```{r}
+plot_ly(x = matrix_product$LD1, y = matrix_product$LD2, z = matrix_product$LD3, type= 'scatter3d', mode='markers')
+```
