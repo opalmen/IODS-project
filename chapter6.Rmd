@@ -38,7 +38,7 @@ RATSL$Time <- as.numeric(RATSL$Time)
 ```
 
 
-## Graphic displays of `RATS` data
+### Graphic displays of `RATS` data
 
 We begin with a graphical display of `RATS` data by plotting the points
 for each subject to show the weight development of individual rats.
